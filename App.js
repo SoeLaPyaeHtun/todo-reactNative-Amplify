@@ -6,73 +6,86 @@ import {
 } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
 import { SafeAreaView } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Amplify } from 'aws-amplify';
+import awsmobile from './src/aws-exports'
+import { API, graphqlOperation } from 'aws-amplify';
+import { createTodo, deleteTodo, updateTodo } from './src/graphql/mutations';
+import { listTodos } from './src/graphql/queries';
+
+Amplify.configure(awsmobile)
+
 
 export default function App() {
-  const data = [
-    {
-      id: 1,
-      title: "title 1",
-      completed: false
-    },
-    {
-      id: 2,
-      title: "title 2",
-      completed: false
-    },
-    {
-      id: 3,
-      title: "title 3",
-      completed: false
-    },
-    {
-      id: 4,
-      title: "title 4",
-      completed: false
-    },
-    {
-      id: 5,
-      title: "title 5",
-      completed: false
-    }
-  ]
 
-  const [todos, setTodo] = useState(data)
-  const [todoName , setTodoName] = useState("")
+  const [todos, setTodo] = useState([])
+  const [todoName, setTodoName] = useState("")
 
   const [showModal, setShowModal] = useState(false)
   console.log(showModal)
   const ref = useRef(null)
 
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  async function fetchTodos() {
+    try {
+      const todoData = await API.graphql(graphqlOperation(listTodos));
+      const todos = todoData.data.listTodos.items;
+      setTodo(todos);
+    } catch (err) {
+      console.log('error fetching todos');
+    }
+  }
+
+
+
   const addTodo = () => {
-    setTodo([...todos, {
-      id: todos[todos.length - 1].id + 1,
+    const newTodo =  { 
       title: todoName,
-      completed: false
-    }])
+    completed: false}
+    setTodo([...todos, newTodo])
+    API.graphql(graphqlOperation(createTodo, {input: newTodo}));
     setShowModal(false)
 
-    
-   
+
+
   }
 
   const openModal = () => {
     setShowModal(true)
   }
 
-  const deleteTodo = (id) => {
-    const tempData = todos.filter(item => item.id !== id); // this will remove the item which matches the id
+  const deeteTodo =  async(_id) => {
+   
+    const todoDetails = {
+      id: _id,
+    };
+    console.log(todoDetails)
+    const tempData = todos.filter(item => item.id !== _id); // this will remove the item which matches the id
     setTodo(tempData);
+    await API.graphql(graphqlOperation(deleteTodo, { input: { id : _id } }))
   }
 
-  const markasComplete = (id) => {
+  const markasComplete = async (todo) => {
     const tempTodos = [...todos];
-    tempTodos[id].completed = !tempTodos[id].completed
+    const newVal = !todo.completed
+    console.log(newVal)
+    tempTodos.map(i => {
+      if(i.id == todo.id){
+        i.completed = !i.completed
+      }
+    })
     setTodo(tempTodos);
+    // console.log(tempTodos[id])
+    const tempTodo = {
+      id : todo.id,
+      completed : newVal
+    }
+    await API.graphql(graphqlOperation(updateTodo, { input : tempTodo}))
   }
 
-
-console.log(todoName)
   return (
     <SafeAreaView>
       <GluestackUIProvider config={config}>
@@ -85,7 +98,7 @@ console.log(todoName)
                   <HStack key={index} p="$3">
                     <Box w="80%">
                       <HStack>
-                        <Checkbox size="md" isInvalid={false} accessibilityLabel="click" isDisabled={false} onPress={() => markasComplete(index)}>
+                        <Checkbox isChecked={todo.completed ? true : false} size="md" isInvalid={false} accessibilityLabel="click" isDisabled={false} onPress={() => markasComplete(todo)}>
                           <CheckboxIndicator mr="$2">
                             <CheckboxIcon as={CheckIcon} />
                           </CheckboxIndicator>
@@ -93,7 +106,7 @@ console.log(todoName)
                         <Text size="xl" textDecorationLine={todo.completed ? "line-through" : "none"}>{todo.title}</Text>
                       </HStack>
                     </Box>
-                    <Button bgColor="white" onPress={() => deleteTodo(todo.id)}>
+                    <Button bgColor="white" onPress={() => deeteTodo(todo.id)}>
                       <ButtonText color="red">Delete</ButtonText>
                     </Button>
                   </HStack>
@@ -126,7 +139,7 @@ console.log(todoName)
         </Box>
 
         <Modal
-         avoidKeyboard={true}
+          avoidKeyboard={true}
           isOpen={showModal}
           onClose={() => {
             setShowModal(false)
@@ -142,20 +155,20 @@ console.log(todoName)
               </ModalCloseButton>
             </ModalHeader>
             <ModalBody>
-            <FormControl
-    size="lg"
-    isDisabled={false}
-    isInvalid={false}
-    isReadOnly={false}
-    isRequired={false}
-  >
-     <FormControlLabel mb="$1">
-      <FormControlLabelText>Todo Item Name</FormControlLabelText>
-    </FormControlLabel>
-    <Input>
-      <InputField type="text" placeholder="type here ..." onChangeText={setTodoName}/>
-    </Input>
-  </FormControl>
+              <FormControl
+                size="lg"
+                isDisabled={false}
+                isInvalid={false}
+                isReadOnly={false}
+                isRequired={false}
+              >
+                <FormControlLabel mb="$1">
+                  <FormControlLabelText>Todo Item Name</FormControlLabelText>
+                </FormControlLabel>
+                <Input>
+                  <InputField type="text" placeholder="type here ..." onChangeText={setTodoName} />
+                </Input>
+              </FormControl>
             </ModalBody>
             <ModalFooter>
               <Button
