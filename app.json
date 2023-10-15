@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "todo",
-    "slug": "todo",
+    "name": "Daily Task",
+    "slug": "daily-task",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/appstore.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
